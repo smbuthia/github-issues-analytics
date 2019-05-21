@@ -1,1 +1,8 @@
-console.log('This application compiles a summary of certain KPIs for support issues logged on GitHub.')
+
+const writer = require('./data-writer')
+
+writer()
+
+//const r = require('./requester')
+
+//const data = r.getData('smbuthia', 'smbuthia', 'lunch-ordering-system', 'open')
