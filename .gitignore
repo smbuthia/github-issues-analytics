@@ -1,4 +1,7 @@
 # Files to ignore
 node_modules
 package-lock.json
+out
 ~*
+.DS_Store
+logfile
