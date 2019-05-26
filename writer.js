@@ -9,12 +9,12 @@ const knex = require('knex')({
 });
 
 module.exports = {
-  writeToIssuesTable: function writeToIssuesTable(tableName, data, label) {
+  writeToIssuesTable: function writeToIssuesTable(tableName, count, label) {
     var dataRows = [
       {
-        date_reported: new Date().getTime(),
+        date_reported: new Date,
         issues_label: label,
-        issues_count: data.total_count
+        issues_count: count
       }
     ];
     knex.schema
@@ -53,7 +53,7 @@ module.exports = {
               throw err;
             })
             .finally(() => {
-              knex.destroy();
+              //knex.destroy();
             });
         }
       })
@@ -61,5 +61,8 @@ module.exports = {
         console.log(err);
         throw err;
       });
+  },
+  destroyConn: function () {
+    knex.destroy();
   }
 };

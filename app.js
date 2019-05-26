@@ -55,19 +55,36 @@ getData(getGhOptions(), true)
   .then(function (result) {
     // Run through all labels getting:
     for (let i = 0; i < result.length; i++) {
-      console.log(result[i].name);
       // 1. Total issues currently open
-      setGhOptions('smbuthia', '', USER, REPO, result[i].name, 'open');
+      let label1 = result[i].name;
+      setGhOptions('smbuthia', '', USER, REPO, label1, 'open');
       getData(getGhOptions(), false)
         .then(function (result) {
-          writer.writeToIssuesTable('open_issues', result, result.total_count);
+          console.log(result)
+          writer.writeToIssuesTable('open_issues', result.total_count, label1);
+        })
+        .catch(err => {
+          console.log(err);
+          throw err;
+        })
+        .finally(() => {
+          
         });
 
       // 2. Total issues currently unassigned
-      setGhOptions('smbuthia', '', USER, REPO, result[i].name, 'open', '', '', '', '', 'assignee');
+      let label2 = result[i].name;
+      setGhOptions('smbuthia', '', USER, REPO, label2, 'open', '', '', '', '', 'assignee');
       getData(getGhOptions(), false)
         .then(function (result) {
-          writer.writeToIssuesTable('unassigned_issues', result, result.total_count);
+          console.log(result)
+          writer.writeToIssuesTable('unassigned_issues', result.total_count, label2);
+        })
+        .catch(err => {
+          console.log(err);
+          throw err;
+        })
+        .finally(() => {
+          
         });
 
       // 3. Total issues reported daily - since start day to last full day
@@ -83,7 +100,16 @@ getData(getGhOptions(), true)
 
 
     }
-});
+  })
+  .catch(err => {
+    console.log(err);
+    throw err;
+  })
+  .finally(() => {
+    
+  });
+
+  
 
 /*
 setGhOptions(
