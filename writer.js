@@ -1,10 +1,10 @@
-const knex = require("knex")({
-  client: "pg",
+const knex = require('knex')({
+  client: 'pg',
   connection: {
-    host: "127.0.0.1",
-    user: "samuel",
-    password: "samuel",
-    database: "support_analytics"
+    host: '127.0.0.1',
+    user: 'samuel',
+    password: 'samuel',
+    database: 'support_analytics'
   }
 });
 
@@ -12,7 +12,7 @@ module.exports = {
   writeToIssuesTable: function writeToIssuesTable(tableName, data, label) {
     var dataRows = [
       {
-        date_reported: new Date(),
+        date_reported: new Date().getTime(),
         issues_label: label,
         issues_count: data.total_count
       }
@@ -23,16 +23,16 @@ module.exports = {
         if (!exists) {
           knex.schema
             .createTable(tableName, table => {
-              table.increments("record_id");
-              table.date("date_reported");
-              table.string("issues_label");
-              table.integer("issues_count");
+              table.increments('record_id');
+              table.timestamp('date_reported');
+              table.string('issues_label');
+              table.integer('issues_count');
             })
             .then(() => {
               knex(tableName)
                 .insert(dataRows)
                 .then(() => {
-                  console.log("data inserted");
+                  console.log('data inserted');
                 })
                 .catch(err => {
                   console.log(err);
@@ -46,7 +46,7 @@ module.exports = {
           knex(tableName)
             .insert(dataRows)
             .then(() => {
-              console.log("data inserted");
+              console.log('data inserted');
             })
             .catch(err => {
               console.log(err);
