@@ -1,8 +1,39 @@
 const writer = require('./writer');
 const getData = require('./requester');
+const dotenv = require('dotenv').config();
 
-const USER = 'smbuthia';
-const REPO = 'lunch-ordering-system';
+if (dotenv.error) {
+  throw dotenv.error
+}
+
+const CLIENT_ID = process.env.CLIENT_ID;
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
+const ORG = process.env.ORGANIZATION;
+const USER = process.env.USER;
+const REPO = process.env.REPOSITORY;
+
+const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
+const TODAY = new Date();
+const LAST_MONDAY = getMonday(addDaysToDate(new Date(), -7));
+// TODO: Set the start date to be the date of last update fetched from the last_updated table
+const START_DATE = new Date();
+
+function addDaysToDate(date, days) {
+  date.setDate(date.getDate() + days);
+  return new Date(date);
+}
+
+function getMonday(date) {
+  date = new Date(date);
+  let day = date.getDay();
+  let diff = date.getDate() - day + (day == 0 ? -6:1); 
+  return new Date(d.setDate(diff));
+}
+
+function formatDate(date) {
+  return date.toISOString().split('T')[0];
+}
+
 
 var ghOptions = {};
 /**
@@ -50,75 +81,233 @@ function setGhOptions(
 }
 
 // Get all labels
-setGhOptions('smbuthia', 'repos/smbuthia/lunch-ordering-system/labels');
+setGhOptions('smbuthia', 'repos/' + ORG + '/' + REPO + '/labels');
+
 getData(getGhOptions(), true)
-  .then(function (result) {
+  .then(function(result) {
     // Run through all labels getting:
-    for (let i = 0; i < result.length; i++) {
-      // 1. Total issues currently open
-      let label1 = result[i].name;
-      setGhOptions('smbuthia', '', USER, REPO, label1, 'open');
-      getData(getGhOptions(), false)
-        .then(function (result) {
-          console.log(result)
-          writer.writeToIssuesTable('open_issues', result.total_count, label1);
-        })
-        .catch(err => {
-          console.log(err);
-          throw err;
-        })
-        .finally(() => {
-          
-        });
+    let openIssuesDataRows = [];
+    let unassignedIssuesDataRows = [];
+    let dailyReportedIssuesDataRows = [];
+    let dailyClosedIssuesDataRows = [];
+    let weeklyReportedIssuesDataRows = [];
+    let weeklyClosedIssuesDataRows = [];
 
-      // 2. Total issues currently unassigned
-      let label2 = result[i].name;
-      setGhOptions('smbuthia', '', USER, REPO, label2, 'open', '', '', '', '', 'assignee');
-      getData(getGhOptions(), false)
-        .then(function (result) {
-          console.log(result)
-          writer.writeToIssuesTable('unassigned_issues', result.total_count, label2);
-        })
-        .catch(err => {
-          console.log(err);
-          throw err;
-        })
-        .finally(() => {
-          
-        });
+    let projects = result.filter(function(res) {
+      return res.name.toLowerCase().includes('project');
+    });
 
-      // 3. Total issues reported daily - since start day to last full day
-
-
-      // 4. Total issues closed daily - since start day to last full day
-
-
-      // 5. Total issues reported weekly - since start week to last full week
-
-
-      // 6. Total issues closed weekly - since start week to last full week
-
-
+    if (projects.length === 0) {
+      projects = [REPO];
     }
+
+    let labels = result.filter(function(res) {
+      return !res.name.toLowerCase().includes('project');
+    });
+
+    for (const project of projects) {
+      for (const label of labels) {
+        // 1. Total issues currently open
+        setGhOptions('smbuthia', '', USER, REPO, label, 'open');
+        getData(getGhOptions(), false)
+          .then(function(result) {
+            if (!isNaN(result.total_count)) {
+              openIssuesDataRows.push({
+                reported: START_DATE,
+                repo: REPO,
+                project: project,
+                label: label,
+                issue_count: result.total_count
+              });
+            } else {
+              console.log(result);
+            }
+          })
+          .catch(err => {
+            console.log(err);
+            throw err;
+          })
+          .finally(() => {});
+
+        // 2. Total issues currently unassigned
+        setGhOptions(
+          USER,
+          '',
+          ORG,
+          REPO,
+          label,
+          'open',
+          '',
+          '',
+          '',
+          '',
+          'assignee'
+        );
+        getData(getGhOptions(), false)
+          .then(function(result) {
+            if (!isNaN(result.total_count)) {
+              unassignedIssuesDataRows.push({
+                reported: START_DATE,
+                repo: REPO,
+                project: project,
+                label: label,
+                issue_count: result.total_count
+              });
+            } else {
+              console.log(result);
+            }
+          })
+          .catch(err => {
+            console.log(err);
+            throw err;
+          })
+          .finally(() => {});
+
+        // 3. Total issues reported daily - since start day to last full day
+        let drWorkingDate = START_DATE;
+        
+        if (START_DATE !== addDaysToDate(TODAY, -1)) {
+          while (Math.round((TODAY - drWorkingDate)/DAY_IN_MILLISECONDS) >= 2) {
+            let createDate = formatDate(drWorkingDate);
+  
+            setGhOptions(USER, '', ORG, REPO, label, '', createDate, createDate);
+  
+            getData(getGhOptions(), false)
+            .then(function(result) {
+              if (!isNaN(result.total_count)) {
+                dailyReportedIssuesDataRows.push({
+                  reported: drWorkingDate,
+                  repo: REPO,
+                  project: project,
+                  label: label,
+                  issue_count: result.total_count
+                });
+              } else {
+                console.log(result);
+              }
+              drWorkingDate = addDaysToDate(drWorkingDate, 1);
+            })
+            .catch(err => {
+              console.log(err);
+              throw err;
+            })
+            .finally(() => {});
+          }
+        }
+
+        // 4. Total issues closed daily - since start day to last full day
+        let dcWorkingDate = START_DATE;
+
+        if (START_DATE !== addDaysToDate(TODAY, -1)) {
+          while (Math.round((TODAY - dcWorkingDate)/DAY_IN_MILLISECONDS) >= 1) {
+            let closeDate = formatDate(dcWorkingDate);
+  
+            setGhOptions(USER, '', ORG, REPO, label, 'closed', '', '', closeDate, closeDate);
+  
+            getData(getGhOptions(), false)
+            .then(function(result) {
+              if (!isNaN(result.total_count)) {
+                dailyClosedIssuesDataRows.push({
+                  reported: dcWorkingDate,
+                  repo: REPO,
+                  project: project,
+                  label: label,
+                  issue_count: result.total_count
+                });
+              } else {
+                console.log(result);
+              }
+              dcWorkingDate = addDaysToDate(dcWorkingDate, 1)
+            })
+            .catch(err => {
+              console.log(err);
+              throw err;
+            })
+            .finally(() => {});
+          }
+        }
+
+        // 5. Total issues reported weekly - since start week to last full week
+        let wrWorkingDate = START_DATE;
+
+        if (getMonday(START_DATE) !== LAST_MONDAY) {
+          let wrWorkingMonday = getMonday(wrWorkingDate);
+
+          while (wrWorkingMonday <= LAST_MONDAY) {
+            let createDate1 = formatDate(wrWorkingMonday);
+            let createDate2 = formatDate(addDaysToDate(wrWorkingMonday, 7));
+
+            setGhOptions(USER, '', ORG, REPO, label, '', createDate1, createDate2);
+
+            getData(getGhOptions(), false)
+            .then(function(result) {
+              if (!isNaN(result.total_count)) {
+                weeklyReportedIssuesDataRows.push({
+                  reported: wrWorkingMonday,
+                  repo: REPO,
+                  project: project,
+                  label: label,
+                  issue_count: result.total_count
+                });
+              } else {
+                console.log(result);
+              }
+              wrWorkingMonday = addDaysToDate(wrWorkingMonday, 7);
+            })
+            .catch(err => {
+              console.log(err);
+              throw err;
+            })
+            .finally(() => {});
+          } 
+        }
+
+        // 6. Total issues closed weekly - since start week to last full week
+        let wcWorkingDate = START_DATE;
+        
+        if (getMonday(START_DATE) !== LAST_MONDAY) {
+          let wcWorkingMonday = getMonday(wcWorkingDate);
+
+          while (wcWorkingMonday <= LAST_MONDAY) {
+            let createDate1 = formatDate(wcWorkingMonday);
+            let createDate2 = formatDate(addDaysToDate(wcWorkingMonday, 7));
+
+            setGhOptions(USER, '', ORG, REPO, label, '', createDate1, createDate2);
+
+            getData(getGhOptions(), false)
+            .then(function(result) {
+              if (!isNaN(result.total_count)) {
+                weeklyClosedIssuesDataRows.push({
+                  reported: wcWorkingMonday,
+                  repo: REPO,
+                  project: project,
+                  label: label,
+                  issue_count: result.total_count
+                });
+              } else {
+                console.log(result);
+              }
+              wcWorkingMonday = addDaysToDate(wcWorkingMonday, 7);
+            })
+            .catch(err => {
+              console.log(err);
+              throw err;
+            })
+            .finally(() => {});
+          } 
+        }
+      }
+    }
+    // TODO: Update the last_updated table with value of last update
+    writer.writeToIssuesTable('open_issues', openIssuesDataRows);
+    writer.writeToIssuesTable('unassigned_issues', unassignedIssuesDataRows);
+    writer.writeToIssuesTable('daily_reported_issues', dailyReportedIssuesDataRows);
+    writer.writeToIssuesTable('daily_closed_issues', dailyClosedIssuesDataRows);
+    writer.writeToIssuesTable('weekly_reported_issues', weeklyReportedIssuesDataRows);
+    writer.writeToIssuesTable('weekly_closed_issues', weeklyClosedIssuesDataRows);
   })
   .catch(err => {
     console.log(err);
     throw err;
   })
-  .finally(() => {
-    
-  });
-
-  
-
-/*
-setGhOptions(
-  userAgent = 'smbuthia',
-  user = 'smbuthia',
-  repo = 'lunch-ordering-system',
-  label = 'active work',
-  state = 'closed',
-  createDate1 = '2019-01-01',
-  createDate2 = '2019-01-01'
-);
-getData(getGhOptions(), false);*/
+  .finally(() => {});

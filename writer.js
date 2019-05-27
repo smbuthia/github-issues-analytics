@@ -1,22 +1,21 @@
+const dotenv = require('dotenv').config();
+
+if (dotenv.error) {
+  throw dotenv.error
+}
+
 const knex = require('knex')({
   client: 'pg',
   connection: {
-    host: '127.0.0.1',
-    user: 'samuel',
-    password: 'samuel',
-    database: 'support_analytics'
+    host: process.env.PG_HOST,
+    user: process.env.PG_USER,
+    password: process.env.PG_PASSWORD,
+    database: process.env.PG_DATABASE
   }
 });
 
 module.exports = {
-  writeToIssuesTable: function writeToIssuesTable(tableName, count, label) {
-    var dataRows = [
-      {
-        date_reported: new Date,
-        issues_label: label,
-        issues_count: count
-      }
-    ];
+  writeToIssuesTable: function writeToIssuesTable(tableName, dataRows) {
     knex.schema
       .hasTable(tableName)
       .then(exists => {
@@ -24,9 +23,11 @@ module.exports = {
           knex.schema
             .createTable(tableName, table => {
               table.increments('record_id');
-              table.timestamp('date_reported');
-              table.string('issues_label');
-              table.integer('issues_count');
+              table.date('reported');
+              table.string('repo');
+              table.string('project');
+              table.string('label');
+              table.integer('issue_count');
             })
             .then(() => {
               knex(tableName)
