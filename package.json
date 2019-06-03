@@ -4,7 +4,7 @@
   "description": "An application that aggregates some KPIs for GitHub support tickets.",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha"
   },
   "author": "",
   "license": "ISC",
@@ -14,5 +14,9 @@
     "knex": "^0.16.3",
     "pg": "^7.8.1",
     "request": "^2.88.0"
+  },
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "mocha": "^6.1.4"
   }
 }

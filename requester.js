@@ -1,8 +1,17 @@
-const request = require('request'),
-  chalk = require('chalk');
+const request = require('request');
+const chalk = require('chalk');
+const dotenv = require('dotenv').config();
 
+if (dotenv.error) {
+  throw dotenv.error
+}
+
+
+const CLIENT_ID = process.env.CLIENT_ID;
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const GITHUB_API_URL = 'https://api.github.com/';
-const GITHUB_ISSUES_QUERY_URL = GITHUB_API_URL + 'search/issues?q=';
+const GITHUB_ISSUES_QUERY_URL = GITHUB_API_URL + 'search/issues?client_id=' 
++ CLIENT_ID + '&client_secret=' + CLIENT_SECRET + '&q=';
 
 const options = {};
 //const response = null;
@@ -21,8 +30,10 @@ function isValidDateString(dateString) {
 function buildUrl (ghOptions) {
   let searchString = 'repo:' + ghOptions.user + '/' + ghOptions.repo;
 
-  if (ghOptions.label && ghOptions.label !== '' && ghOptions !== 'all') {
-    searchString += '+label:' + ghOptions.label;
+  if (ghOptions.label && Array.isArray(ghOptions.label)) {
+    for (const l of ghOptions.label) {
+      searchString += '+label:' + l;
+    }
   }
 
   if (
@@ -108,6 +119,8 @@ function getData(ghOptions, useParams) {
   } else {
     url = GITHUB_API_URL + ghOptions.urlParams
   }
+
+  console.log(url);
 
   setOptions(url, ghOptions.userAgent);
 
