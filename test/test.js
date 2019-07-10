@@ -1,6 +1,6 @@
 var assert = require('assert');
 var assert = require('chai').assert;
-var writer = require('../write-to-db');
+var writer = require('../github-fetcher');
 
 
 describe('getProjectsAndLabels', () => {

@@ -1,10 +1,10 @@
-const writer = require('./writer');
+const writer = require('./db-writer');
 const getData = require('./requester');
 const chalk = require('chalk');
 const dotenv = require('dotenv').config();
 
 if (dotenv.error) {
-  throw dotenv.error
+  throw dotenv.error;
 }
 
 const ORG = process.env.GH_ORGANIZATION;
@@ -80,7 +80,7 @@ function setGhOptions(
 }
 
 module.exports = {
-  getProjectsAndLabels: function getProjectsAndLabels () {
+  getProjectsAndLabels: () => {
     return new Promise((resolve, reject) => {
       setGhOptions(USER_AGENT, 'repos/' + ORG + '/' + REPO + '/labels');
 
@@ -115,7 +115,7 @@ module.exports = {
         .finally(() => {});
     });
   },
-  getOpenIssues: function getOpenIssues (projects, labels, useProjectLabel) {
+  getOpenIssues: (projects, labels, useProjectLabel) => {
     return new Promise((resolve, reject) => {
       try {
         let openIssuesDataRows = [];
@@ -163,7 +163,7 @@ module.exports = {
       }
     })
   },
-  getUnassignedIssues: function getUnassignedIssues (projects, labels, useProjectLabel) {
+  getUnassignedIssues: (projects, labels, useProjectLabel) => {
     return new Promise((resolve, reject) => {
       try {
         let unassignedIssuesDataRows = [];
@@ -224,7 +224,7 @@ module.exports = {
       }
     });
   },
-  getDailyReportedIssues: function getDailyReportedIssues (projects, labels, useProjectLabel) {
+  getDailyReportedIssues: (projects, labels, useProjectLabel) => {
     return new Promise((resolve, reject) => {
       try {
         let dailyReportedIssuesDataRows = [];
@@ -289,7 +289,7 @@ module.exports = {
       }
     });
   },
-  getDailyClosedIssues: function getDailyClosedIssues (projects, labels, useProjectLabel) {
+  getDailyClosedIssues: (projects, labels, useProjectLabel) => {
     return new Promise((resolve, reject) => {
       try {
         let dailyClosedIssuesDataRows = [];
@@ -361,7 +361,7 @@ module.exports = {
       }
     });
   },
-  getWeeklyReportedIssues: function getWeeklyReportedIssues (projects, labels, useProjectLabel) {
+  getWeeklyReportedIssues: (projects, labels, useProjectLabel) => {
     return new Promise((reject, resolve) => {
       try {
         let weeklyReportedIssuesDataRows = [];
@@ -429,7 +429,7 @@ module.exports = {
       }
     });
   },
-  getWeeklyClosedIssues: function getWeeklyClosedIssues (projects, labels, useProjectLabel) {
+  getWeeklyClosedIssues: (projects, labels, useProjectLabel) => {
     return new Promise((resolve, reject) => {
       try {
         let weeklyClosedIssuesDataRows = [];

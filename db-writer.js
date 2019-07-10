@@ -1,7 +1,7 @@
 const dotenv = require('dotenv').config();
 
 if (dotenv.error) {
-  throw dotenv.error
+  throw dotenv.error;
 }
 
 const knex = require('knex')({
@@ -15,7 +15,7 @@ const knex = require('knex')({
 });
 
 module.exports = {
-  writeToIssuesTable: function writeToIssuesTable(tableName, dataRows) {
+  writeToIssuesTable: (tableName, dataRows) => {
     knex.schema
       .hasTable(tableName)
       .then(exists => {
@@ -63,7 +63,7 @@ module.exports = {
         throw err;
       });
   },
-  destroyConn: function () {
+  destroyConn: () => {
     knex.destroy();
   }
 };

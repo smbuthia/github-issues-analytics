@@ -1,3 +1,18 @@
-var w = require('./write-to-db').getUnassignedIssues([{name: 'lunch-ordering-system'}], [{name: 'bug'}, {name: 'question'}], false);
+var githubFetcher = require('./github-fetcher');
+var dbWriter = require('./db-writer');
 
-w.then(function(result) {console.log(result)});
+githubFetcher
+  .getProjectsAndLabels()
+  .then((result) => {
+    githubFetcher
+      .getUnassignedIssues(result.projects, result.labels, result.useProjectLabels)
+      .then((result) => {
+        dbWriter.writeToIssuesTable('unassigned_issues', result);
+      });
+
+    githubFetcher
+      .getOpenIssues(result.projects, result.labels, result.useProjectLabels)
+      .then((result) => {
+        dbWriter.writeToIssuesTable('open_issues', result);
+      });
+  });
