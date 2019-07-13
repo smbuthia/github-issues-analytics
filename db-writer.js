@@ -54,7 +54,7 @@ module.exports = {
               throw err;
             })
             .finally(() => {
-              //knex.destroy();
+              knex.destroy();
             });
         }
       })

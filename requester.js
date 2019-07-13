@@ -121,8 +121,6 @@ module.exports = {
       url = GITHUB_API_URL + ghOptions.urlParams;
     }
   
-    console.log(url);
-  
     setOptions(url, ghOptions.userAgent);
   
     return new Promise(function (resolve, reject) {

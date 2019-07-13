@@ -1,4 +1,4 @@
-const getData = require('./requester');
+const requester = require('./requester');
 const chalk = require('chalk');
 const dotenv = require('dotenv').config();
 
@@ -11,23 +11,19 @@ const USER = process.env.GH_USER;
 const REPO = process.env.GH_REPOSITORY;
 const USER_AGENT = process.env.GH_USER_AGENT;
 
-const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
-const TODAY = new Date();
-const LAST_MONDAY = getMonday(addDaysToDate(new Date(), -7));
-// TODO: Set the start date to be the date of last update fetched from the last_updated table
-const START_DATE = new Date('2019-05-27');
-
-var addDaysToDate = (date, days) => {
-  date.setDate(date.getDate() + days);
-  return new Date(date);
-};
-
 var getMonday = (date) => {
   date = new Date(date);
   let day = date.getDay();
   let diff = date.getDate() - day + (day == 0 ? -6:1); 
   return new Date(date.setDate(diff));
 };
+
+var addDaysToDate = (date, days) => {
+  date.setDate(date.getDate() + days);
+  return new Date(date);
+};
+
+const TODAY = new Date();
 
 var formatDate = (date) => {
   return date.toISOString().split('T')[0];
@@ -52,7 +48,7 @@ var getGhOptions = () => {
  * @param {string} closeDate1 - YYYY-MM-DD The lower limit close date ie. issues closed after this date. To find issue closed on this date, set closeDate1 and closeDate2 to be equal.
  * @param {string} closeDate2 - YYYY-MM-DD The upper limit close date ie. issues closed before this date. To find issue closed on this date, set closeDate1 and closeDate2 to be equal.
  */
-function setGhOptions(
+var setGhOptions = (
   userAgent,
   urlParams,
   user,
@@ -64,7 +60,7 @@ function setGhOptions(
   closeDate1,
   closeDate2,
   missing
-) {
+) => {
   ghOptions.userAgent = userAgent;
   ghOptions.urlParams = urlParams;
   ghOptions.user = user;
@@ -76,14 +72,14 @@ function setGhOptions(
   ghOptions.closeDate1 = closeDate1;
   ghOptions.closeDate2 = closeDate2;
   ghOptions.missing = missing;
-}
+};
 
 module.exports = {
   getProjectsAndLabels: () => {
     return new Promise((resolve, reject) => {
       setGhOptions(USER_AGENT, 'repos/' + ORG + '/' + REPO + '/labels');
 
-      getData(getGhOptions(), true)
+      requester.getData(getGhOptions(), true)
         .then((result) => {
           
           let ghDetails = {};
@@ -114,383 +110,339 @@ module.exports = {
         .finally(() => {});
     });
   },
-  getOpenIssues: (projects, labels, useProjectLabel) => {
+  getOpenIssues: (projectName, labels, useProjectLabel) => {
     return new Promise((resolve, reject) => {
       try {
         let openIssuesDataRows = [];
+        let processedLabels = 0;
 
-        for (const project of projects) {
-          let projectName = project.name;
+        labels.forEach((label) => {
+          const labelName = label.name;
+          let labelNameArr = [];
 
-          for (const label of labels) {
-            let labelName = label.name;
-            let labelNameArr = [];
-
-            if (useProjectLabel) {
-              labelNameArr = [projectName, labelName];
-            } else {
-              labelNameArr = [labelName];
-            }
-            
-            setGhOptions(USER_AGENT, '', USER, REPO, labelNameArr, 'open');
-            getData(getGhOptions(), false)
-              .then((result) => {
-                if (!isNaN(result.total_count)) {
-                  openIssuesDataRows.push({
-                    reported: TODAY,
-                    repo: REPO,
-                    project: projectName,
-                    label: labelName,
-                    issue_count: result.total_count
-                  });
-                  if (label === labels[labels.length - 1]) {
-                    resolve(openIssuesDataRows);
-                  }
-                } else {
-                  console.log(result);
-                }
-              })
-              .catch((err) => {
-                console.log(err);
-                throw err;
-              })
-              .finally(() => {});
+          if (useProjectLabel) {
+            labelNameArr = [projectName, labelName];
+          } else {
+            labelNameArr = [labelName];
           }
-        }
+          
+          setGhOptions(USER_AGENT, '', USER, REPO, labelNameArr, 'open');
+          requester.getData(getGhOptions(), false)
+            .then((result) => {
+              if (!isNaN(result.total_count)) {
+                openIssuesDataRows.push({
+                  reported: TODAY,
+                  repo: REPO,
+                  project: projectName,
+                  label: labelName,
+                  issue_count: result.total_count
+                });
+                processedLabels++;
+                if (processedLabels === labels.length) {
+                  //console.log('The label: ' + label.name);
+                  //console.log(util.inspect(labels, {showHidden: false, depth: null}));
+                  resolve(openIssuesDataRows);
+                }
+              } else {
+                console.log(result);
+              }
+            })
+            .catch((err) => {
+              throw err;
+            })
+            .finally(() => {});
+        });
       } catch (err) {
         reject(err);
       }
     });
   },
-  getUnassignedIssues: (projects, labels, useProjectLabel) => {
+  getUnassignedIssues: (projectName, labels, useProjectLabel) => {
     return new Promise((resolve, reject) => {
       try {
         let unassignedIssuesDataRows = [];
+        let processedLabels = 0;
 
-        for (const project of projects) {
-          let projectName = project.name;
+        labels.forEach((label) => {
+          const labelName = label.name;
+          let labelNameArr = [];
 
-          for (const label of labels) {
-            let labelName = label.name;
-            let labelNameArr = [];
-
-            if (useProjectLabel) {
-              labelNameArr = [projectName, labelName];
-            } else {
-              labelNameArr = [labelName];
-            }
-
-            setGhOptions(
-              USER,
-              '',
-              ORG,
-              REPO,
-              labelNameArr,
-              'open',
-              '',
-              '',
-              '',
-              '',
-              'assignee'
-            );
-
-            getData(getGhOptions(), false)
-              .then((result) => {
-                if (!isNaN(result.total_count)) {
-                  unassignedIssuesDataRows.push({
-                    reported: TODAY,
-                    repo: REPO,
-                    project: projectName,
-                    label: labelName,
-                    issue_count: result.total_count
-                  });
-                  if (label === labels[labels.length - 1]) {
-                    resolve(unassignedIssuesDataRows);
-                  }
-                } else {
-                  console.log(result);
-                }
-              })
-              .catch((err) => {
-                console.log(err);
-                throw err;
-              })
-              .finally(() => {});
+          if (useProjectLabel) {
+            labelNameArr = [projectName, labelName];
+          } else {
+            labelNameArr = [labelName];
           }
-        }
+
+          setGhOptions(
+            USER,
+            '',
+            ORG,
+            REPO,
+            labelNameArr,
+            'open',
+            '',
+            '',
+            '',
+            '',
+            'assignee'
+          );
+          requester.getData(getGhOptions(), false)
+            .then((result) => {
+              if (!isNaN(result.total_count)) {
+                unassignedIssuesDataRows.push({
+                  reported: TODAY,
+                  repo: REPO,
+                  project: projectName,
+                  label: labelName,
+                  issue_count: result.total_count
+                });
+                processedLabels++;
+                if (processedLabels === labels.length) {
+                  resolve(unassignedIssuesDataRows);
+                }
+              } else {
+                console.log(result);
+              }
+            })
+            .catch((err) => {
+              throw err;
+            })
+            .finally(() => {});
+        });
       } catch (err) {
         reject(err);
       }
     });
   },
-  getDailyReportedIssues: (projects, labels, useProjectLabel) => {
+  getDailyReportedIssues: (projectName, labels, useProjectLabel, lastUpdateDate) => {
     return new Promise((resolve, reject) => {
       try {
         let dailyReportedIssuesDataRows = [];
+        let processedLabels = 0;
   
-        for (const project of projects) {
-          let projectName = project.name;
-  
-          for (const label of labels) {
-            let labelName = label.name;
-            let labelNameArr = [];
-  
-            if (useProjectLabel) {
-              labelNameArr = [projectName, labelName];
-            } else {
-              labelNameArr = [labelName];
-            }
-  
-            let drWorkingDate = new Date(START_DATE);
-  
-            while (Math.round((TODAY - drWorkingDate) / DAY_IN_MILLISECONDS) >= 2) {
-              let createDate = formatDate(drWorkingDate);
-              setGhOptions(
-                USER,
-                '',
-                ORG,
-                REPO,
-                labelNameArr,
-                '',
-                createDate,
-                createDate
-              );
-              
-              getData(getGhOptions(), false)
-                .then((result) => {
-                  if (!isNaN(result.total_count)) {
-                    dailyReportedIssuesDataRows.push({
-                      reported: drWorkingDate,
-                      repo: REPO,
-                      project: projectName,
-                      label: labelName,
-                      issue_count: result.total_count
-                    });
-                    if (label === labels[labels.length - 1]) {
-                      resolve(dailyReportedIssuesDataRows);
-                    }
-                  } else {
-                    console.log(result);
-                  }
-                })
-                .catch(err => {
-                  console.log(err);
-                  throw err;
-                })
-                .finally(() => {});
-  
-              drWorkingDate = addDaysToDate(drWorkingDate, 1);
-            }
+        labels.forEach((label) => {
+          const labelName = label.name;
+          let labelNameArr = [];
+
+          if (useProjectLabel) {
+            labelNameArr = [projectName, labelName];
+          } else {
+            labelNameArr = [labelName];
           }
-        }
+
+          let drWorkingDate = addDaysToDate(lastUpdateDate, 1);
+          let createDate = formatDate(drWorkingDate);
+          setGhOptions(
+            USER,
+            '',
+            ORG,
+            REPO,
+            labelNameArr,
+            '',
+            createDate,
+            createDate
+          );
+          
+          requester.getData(getGhOptions(), false)
+            .then((result) => {
+              if (!isNaN(result.total_count)) {
+                dailyReportedIssuesDataRows.push({
+                  reported: drWorkingDate,
+                  repo: REPO,
+                  project: projectName,
+                  label: labelName,
+                  issue_count: result.total_count
+                });
+                if (processedLabels === labels.length) {
+                  resolve(dailyReportedIssuesDataRows);
+                }
+              } else {
+                console.log(result);
+              }
+            })
+            .catch((err) => {
+              throw err;
+            })
+            .finally(() => {});
+        });
       } catch (err) {
         reject(err);
       }
     });
   },
-  getDailyClosedIssues: (projects, labels, useProjectLabel) => {
+  getDailyClosedIssues: (projectName, labels, useProjectLabel, lastUpdateDate) => {
     return new Promise((resolve, reject) => {
       try {
         let dailyClosedIssuesDataRows = [];
-  
-        for (const project of projects) {
-          let projectName = project.name;
-  
-          for (const label of labels) {
-            let labelName = label.name;
-            let labelNameArr = [];
-  
-            if (useProjectLabel) {
-              labelNameArr = [projectName, labelName];
-            } else {
-              labelNameArr = [labelName];
-            }
-  
-            let dcWorkingDate = new Date(START_DATE);
-  
-            while (Math.round((TODAY - dcWorkingDate) / DAY_IN_MILLISECONDS) >= 2) {
-              let closeDate = formatDate(dcWorkingDate);
-              console.log(
-                'Debug: ' + Math.round((TODAY - dcWorkingDate) / DAY_IN_MILLISECONDS)
-              );
-              console.log('closeDate (' + labelName + '): ' + closeDate);
-  
-              setGhOptions(
-                USER,
-                '',
-                ORG,
-                REPO,
-                labelNameArr,
-                'closed',
-                '',
-                '',
-                closeDate,
-                closeDate
-              );
-  
-              getData(getGhOptions(), false)
-                .then((result) => {
-                  if (!isNaN(result.total_count)) {
-                    dailyClosedIssuesDataRows.push({
-                      reported: dcWorkingDate,
-                      repo: REPO,
-                      project: projectName,
-                      label: labelName,
-                      issue_count: result.total_count
-                    });
-                    if (label === labels[labels.length - 1]) {
-                      resolve(dailyClosedIssuesDataRows);
-                    }
-                  } else {
-                    console.log(result);
-                  }
-                })
-                .catch((err) => {
-                  console.log(err);
-                  throw err;
-                })
-                .finally(() => {});
-  
-              dcWorkingDate = addDaysToDate(dcWorkingDate, 1);
-            }
+        let processedLabels = 0;
+
+        labels.forEach((label) => {
+          const labelName = label.name;
+          let labelNameArr = [];
+
+          if (useProjectLabel) {
+            labelNameArr = [projectName, labelName];
+          } else {
+            labelNameArr = [labelName];
           }
-        }
+
+          let dcWorkingDate = addDaysToDate(lastUpdateDate, 1);
+          let closeDate = formatDate(dcWorkingDate);
+
+          setGhOptions(
+            USER,
+            '',
+            ORG,
+            REPO,
+            labelNameArr,
+            'closed',
+            '',
+            '',
+            closeDate,
+            closeDate
+          );
+          requester.getData(getGhOptions(), false)
+            .then((result) => {
+              if (!isNaN(result.total_count)) {
+                dailyClosedIssuesDataRows.push({
+                  reported: dcWorkingDate,
+                  repo: REPO,
+                  project: projectName,
+                  label: labelName,
+                  issue_count: result.total_count
+                });
+                processedLabels++;
+                if (processedLabels === labels.length) {
+                  resolve(dailyClosedIssuesDataRows);
+                }
+              } else {
+                console.log(result);
+              }
+            })
+            .catch((err) => {
+              throw err;
+            })
+            .finally(() => {});
+        });
       } catch (err) {
         reject(err);
       }
     });
   },
-  getWeeklyReportedIssues: (projects, labels, useProjectLabel) => {
+  getWeeklyReportedIssues: (projectName, labels, useProjectLabel, lastUpdateDate) => {
     return new Promise((reject, resolve) => {
       try {
         let weeklyReportedIssuesDataRows = [];
+        let processedLabels = 0;
   
-        for (const project of projects) {
-          let projectName = project.name;
-  
-          for (const label of labels) {
-            let labelName = label.name;
-            let labelNameArr = [];
-  
-            if (useProjectLabel) {
-              labelNameArr = [projectName, labelName];
-            } else {
-              labelNameArr = [labelName];
-            }
-  
-            let wrWorkingDate = new Date(START_DATE);
-  
-            let wrWorkingMonday = getMonday(wrWorkingDate);
-  
-            while (wrWorkingMonday <= LAST_MONDAY) {
-              let createDate1 = formatDate(wrWorkingMonday);
-              let createDate2 = formatDate(addDaysToDate(wrWorkingMonday, 7));
-      
-              setGhOptions(
-                USER,
-                '',
-                ORG,
-                REPO,
-                labelNameArr,
-                '',
-                createDate1,
-                createDate2
-              );
-      
-              getData(getGhOptions(), false)
-                .then((result) => {
-                  if (!isNaN(result.total_count)) {
-                    weeklyReportedIssuesDataRows.push({
-                      reported: wrWorkingMonday,
-                      repo: REPO,
-                      project: projectName,
-                      label: labelName,
-                      issue_count: result.total_count
-                    });
-                    if (label === labels[labels.length - 1]) {
-                      resolve(weeklyReportedIssuesDataRows);
-                    }
-                  } else {
-                    console.log(result);
-                  }
-                })
-                .catch((err) => {
-                  console.log(err);
-                  throw err;
-                })
-                .finally(() => {});
-              wrWorkingMonday = addDaysToDate(wrWorkingMonday, 7);
-            }
+        labels.forEach((label) => {
+          const labelName = label.name;
+          let labelNameArr = [];
+
+          if (useProjectLabel) {
+            labelNameArr = [projectName, labelName];
+          } else {
+            labelNameArr = [labelName];
           }
-        }
+
+          let wrWorkingMonday = getMonday(lastUpdateDate);
+          let wrWorkingDate = addDaysToDate(wrWorkingMonday, 7);
+          let createDate1 = formatDate(wrWorkingDate);
+          let createDate2 = formatDate(addDaysToDate(wrWorkingDate, 7));
+  
+          setGhOptions(
+            USER,
+            '',
+            ORG,
+            REPO,
+            labelNameArr,
+            '',
+            createDate1,
+            createDate2
+          );
+  
+          requester.getData(getGhOptions(), false)
+            .then((result) => {
+              if (!isNaN(result.total_count)) {
+                weeklyReportedIssuesDataRows.push({
+                  reported: wrWorkingDate,
+                  repo: REPO,
+                  project: projectName,
+                  label: labelName,
+                  issue_count: result.total_count
+                });
+                processedLabels++;
+                if (processedLabels === labels.length) {
+                  resolve(weeklyReportedIssuesDataRows);
+                }
+              } else {
+                console.log(result);
+              }
+            })
+            .catch((err) => {
+              throw err;
+            })
+            .finally(() => {});
+        });
       } catch (err) {
         reject(err);
       }
     });
   },
-  getWeeklyClosedIssues: (projects, labels, useProjectLabel) => {
+  getWeeklyClosedIssues: (projectName, labels, useProjectLabel, lastUpdateDate) => {
     return new Promise((resolve, reject) => {
       try {
         let weeklyClosedIssuesDataRows = [];
+        let processedLabels = 0;
   
-        for (const project of projects) {
-          let projectName = project.name;
-  
-          for (const label of labels) {
-            let labelName = label.name;
-            let labelNameArr = [];
-  
-            if (useProjectLabel) {
-              labelNameArr = [projectName, labelName];
-            } else {
-              labelNameArr = [labelName];
-            }
-  
-            let wcWorkingDate = new Date(START_DATE);
-            let wcWorkingMonday = getMonday(wcWorkingDate);
-  
-            while (wcWorkingMonday <= LAST_MONDAY) {
-              let createDate1 = formatDate(wcWorkingMonday);
-              let createDate2 = formatDate(addDaysToDate(wcWorkingMonday, 7));
-  
-              setGhOptions(
-                USER,
-                '',
-                ORG,
-                REPO,
-                labelNameArr,
-                '',
-                createDate1,
-                createDate2
-              );
-  
-              getData(getGhOptions(), false)
-                .then((result) => {
-                  if (!isNaN(result.total_count)) {
-                    weeklyClosedIssuesDataRows.push({
-                      reported: wcWorkingMonday,
-                      repo: REPO,
-                      project: projectName,
-                      label: labelName,
-                      issue_count: result.total_count
-                    });
-                    if (label === labels[labels.length - 1]) {
-                      resolve(weeklyClosedIssuesDataRows);
-                    }
-                  } else {
-                    console.log(result);
-                  }
-                })
-                .catch((err) => {
-                  console.log(err);
-                  throw err;
-                })
-                .finally(() => {});
-  
-              wcWorkingMonday = addDaysToDate(wcWorkingMonday, 7);
-            }
+        labels.forEach((label) => {
+          const labelName = label.name;
+          let labelNameArr = [];
+
+          if (useProjectLabel) {
+            labelNameArr = [projectName, labelName];
+          } else {
+            labelNameArr = [labelName];
           }
-        }
+
+          let wcWorkingMonday = getMonday(lastUpdateDate);
+          let wcWorkingDate = addDaysToDate(wcWorkingMonday, 7);
+          let createDate1 = formatDate(wcWorkingDate);
+          let createDate2 = formatDate(addDaysToDate(wcWorkingDate, 7));
+
+          setGhOptions(
+            USER,
+            '',
+            ORG,
+            REPO,
+            labelNameArr,
+            '',
+            createDate1,
+            createDate2
+          );
+          requester.getData(getGhOptions(), false)
+            .then((result) => {
+              if (!isNaN(result.total_count)) {
+                weeklyClosedIssuesDataRows.push({
+                  reported: wcWorkingDate,
+                  repo: REPO,
+                  project: projectName,
+                  label: labelName,
+                  issue_count: result.total_count
+                });
+                processedLabels++;
+                if (processedLabels === labels.length) {
+                  resolve(weeklyClosedIssuesDataRows);
+                }
+              } else {
+                console.log(result);
+              }
+            })
+            .catch((err) => {
+              throw err;
+            })
+            .finally(() => {});
+        });
       } catch (err) {
         reject(err);
       }
