@@ -10,7 +10,7 @@ describe('getProjectsAndLabels', () => {
         assert.typeOf(result.projects, 'array');
         assert.typeOf(result.labels, 'array');
         assert.typeOf(result.useProjectLabels, 'boolean');
-      })
+      });
   });
 });
   
