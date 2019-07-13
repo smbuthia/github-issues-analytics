@@ -139,8 +139,6 @@ module.exports = {
                 });
                 processedLabels++;
                 if (processedLabels === labels.length) {
-                  //console.log('The label: ' + label.name);
-                  //console.log(util.inspect(labels, {showHidden: false, depth: null}));
                   resolve(openIssuesDataRows);
                 }
               } else {
