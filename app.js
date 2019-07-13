@@ -15,4 +15,10 @@ githubFetcher
       .then((result) => {
         dbWriter.writeToIssuesTable('open_issues', result);
       });
+
+    githubFetcher
+      .getDailyReportedIssues(result.projects, result.labels, result.useProjectLabels)
+      .then((result) => {
+        dbWriter.writeToIssuesTable('', result);
+      });
   });

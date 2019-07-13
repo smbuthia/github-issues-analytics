@@ -1,4 +1,3 @@
-const writer = require('./db-writer');
 const getData = require('./requester');
 const chalk = require('chalk');
 const dotenv = require('dotenv').config();
@@ -18,29 +17,29 @@ const LAST_MONDAY = getMonday(addDaysToDate(new Date(), -7));
 // TODO: Set the start date to be the date of last update fetched from the last_updated table
 const START_DATE = new Date('2019-05-27');
 
-function addDaysToDate(date, days) {
+var addDaysToDate = (date, days) => {
   date.setDate(date.getDate() + days);
   return new Date(date);
-}
+};
 
-function getMonday(date) {
+var getMonday = (date) => {
   date = new Date(date);
   let day = date.getDay();
   let diff = date.getDate() - day + (day == 0 ? -6:1); 
   return new Date(date.setDate(diff));
-}
+};
 
-function formatDate(date) {
+var formatDate = (date) => {
   return date.toISOString().split('T')[0];
-}
+};
 
 var ghOptions = {};
 /**
  * Get GitHub request parameters
  */
-function getGhOptions() {
+var getGhOptions = () => {
   return ghOptions;
-}
+};
 /**
  * This function sets the options that will be used to make your GitHub api request
  * @param {string} userAgent - The userAgent used to make the request
@@ -89,7 +88,7 @@ module.exports = {
           
           let ghDetails = {};
         
-          ghDetails.projects = result.filter(function(res) {
+          ghDetails.projects = result.filter((res) => {
             return res.name.toLowerCase().includes('project');
           });
     
@@ -100,7 +99,7 @@ module.exports = {
             ghDetails.useProjectLabels = true;
           }
     
-          ghDetails.labels = result.filter(function(res) {
+          ghDetails.labels = result.filter((res) => {
             return !res.name.toLowerCase().includes('project:');
           });
 
@@ -151,7 +150,7 @@ module.exports = {
                   console.log(result);
                 }
               })
-              .catch(err => {
+              .catch((err) => {
                 console.log(err);
                 throw err;
               })
@@ -161,7 +160,7 @@ module.exports = {
       } catch (err) {
         reject(err);
       }
-    })
+    });
   },
   getUnassignedIssues: (projects, labels, useProjectLabel) => {
     return new Promise((resolve, reject) => {
@@ -212,7 +211,7 @@ module.exports = {
                   console.log(result);
                 }
               })
-              .catch(err => {
+              .catch((err) => {
                 console.log(err);
                 throw err;
               })
@@ -330,7 +329,7 @@ module.exports = {
               );
   
               getData(getGhOptions(), false)
-                .then(function(result) {
+                .then((result) => {
                   if (!isNaN(result.total_count)) {
                     dailyClosedIssuesDataRows.push({
                       reported: dcWorkingDate,
@@ -346,7 +345,7 @@ module.exports = {
                     console.log(result);
                   }
                 })
-                .catch(err => {
+                .catch((err) => {
                   console.log(err);
                   throw err;
                 })
@@ -399,7 +398,7 @@ module.exports = {
               );
       
               getData(getGhOptions(), false)
-                .then(function(result) {
+                .then((result) => {
                   if (!isNaN(result.total_count)) {
                     weeklyReportedIssuesDataRows.push({
                       reported: wrWorkingMonday,
@@ -415,7 +414,7 @@ module.exports = {
                     console.log(result);
                   }
                 })
-                .catch(err => {
+                .catch((err) => {
                   console.log(err);
                   throw err;
                 })
@@ -482,7 +481,7 @@ module.exports = {
                     console.log(result);
                   }
                 })
-                .catch(err => {
+                .catch((err) => {
                   console.log(err);
                   throw err;
                 })
@@ -497,4 +496,4 @@ module.exports = {
       }
     });
   }
-}
+};

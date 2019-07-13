@@ -3,31 +3,30 @@ const chalk = require('chalk');
 const dotenv = require('dotenv').config();
 
 if (dotenv.error) {
-  throw dotenv.error
+  throw dotenv.error;
 }
 
 
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const GITHUB_API_URL = 'https://api.github.com/';
-const GITHUB_ISSUES_QUERY_URL = GITHUB_API_URL + 'search/issues?client_id=' 
-+ CLIENT_ID + '&client_secret=' + CLIENT_SECRET + '&q=';
+const GITHUB_ISSUES_QUERY_URL = GITHUB_API_URL + 'search/issues?client_id=' + CLIENT_ID + '&client_secret=' + CLIENT_SECRET + '&q=';
 
 const options = {};
 //const response = null;
 
-function getOptions() {
+var getOptions = () => {
   return options;
-}
+};
 
-function isValidDateString(dateString) {
+var isValidDateString = (dateString) => {
   return (
     dateString.match(/^\d{4}-\d{2}-\d{2}$/) &&
     !isNaN(new Date(dateString).getTime())
   );
-}
+};
 
-function buildUrl (ghOptions) {
+var buildUrl = (ghOptions) => {
   let searchString = 'repo:' + ghOptions.user + '/' + ghOptions.repo;
 
   if (ghOptions.label && Array.isArray(ghOptions.label)) {
@@ -86,16 +85,16 @@ function buildUrl (ghOptions) {
   }
 
   return encodeURI(GITHUB_ISSUES_QUERY_URL + searchString);
-}
+};
 
-function setOptions(url, userAgent) {
+var setOptions = (url, userAgent) => {
   options.url = url;
   options.headers = {
     'User-Agent': userAgent
   };
-}
+};
 
-function callback(error, response, body) {
+var callback = (error, response, body) => {
   if (!error && response.statusCode == 200) {
     var info = JSON.parse(body);
   } else if (error) {
@@ -105,44 +104,45 @@ function callback(error, response, body) {
     );
     console.log(chalk.red(error));
   }
-}
-/**
- * Get JSON data from GitHub API
- * @param {object} ghOptions - These are parameters that will be used to build the GitHub API request url
- * @param {boolean} useParams - This flag will determine whether to use only the custom url parameters provided
- */
-function getData(ghOptions, useParams) {
-  let url = '';
+};
+
+module.exports = {
+  /**
+   * Get JSON data from GitHub API
+   * @param {object} ghOptions - These are parameters that will be used to build the GitHub API request url
+   * @param {boolean} useParams - This flag will determine whether to use only the custom url parameters provided
+   */
+  getData: (ghOptions, useParams) => {
+    let url = '';
+    
+    if (!useParams) {
+      url = buildUrl(ghOptions);
+    } else {
+      url = GITHUB_API_URL + ghOptions.urlParams;
+    }
   
-  if (!useParams) {
-    url = buildUrl(ghOptions);
-  } else {
-    url = GITHUB_API_URL + ghOptions.urlParams
+    console.log(url);
+  
+    setOptions(url, ghOptions.userAgent);
+  
+    return new Promise(function (resolve, reject) {
+      const req = request(getOptions(), callback);
+  
+      let body = '';
+    
+      req.on('data', chunk => {
+        body += chunk;
+      });
+    
+      req.on('end', () => {
+        try {
+          resolve(JSON.parse(body));
+        } catch (error) {
+          console.log(chalk.red.bold('Oops! Something went wrong.'));
+          console.log(error);
+          reject(error);
+        }
+      });
+    });
   }
-
-  console.log(url);
-
-  setOptions(url, ghOptions.userAgent);
-
-  return new Promise(function (resolve, reject) {
-    const req = request(getOptions(), callback);
-
-    let body = '';
-  
-    req.on('data', chunk => {
-      body += chunk;
-    });
-  
-    req.on('end', () => {
-      try {
-        resolve(JSON.parse(body));
-      } catch (error) {
-        console.log(chalk.red.bold('Oops! Something went wrong.'));
-        console.log(error);
-        reject(error)
-      }
-    });
-  });
-}
-
-module.exports = getData;
+};
