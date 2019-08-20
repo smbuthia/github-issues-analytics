@@ -14,52 +14,62 @@ const weeklyClosedIssuesTable = 'weekly_closed_issues';
 
 githubFetcher
   .getLastReportedDates(dailyReportedIssuesTable, dailyClosedIssuesTable, weeklyReportedIssuesTable, weeklyClosedIssuesTable)
-  .then((result1) => {
+  .then((lastReported) => {
+    return lastReported;
+  })
+  .then(() => {
+
+  })
+
+
+githubFetcher
+  .getLastReportedDates(dailyReportedIssuesTable, dailyClosedIssuesTable, weeklyReportedIssuesTable, weeklyClosedIssuesTable)
+  .then((lastReported) => {
     githubFetcher
       .getProjectsAndLabels()
-      .then((result2) => {
-        result2.projects.forEach((project) => {
+      .then((projectsAndLabels) => {
+        projectsAndLabels.projects.forEach((project) => {
           githubFetcher
-            .getUnassignedIssues(project.name, result2.labels, result2.useProjectLabels)
-            .then((resultA) => {
-              dbWriter.writeToIssuesTable(unassignedIssuesTable, resultA);
+            .getUnassignedIssues(project.name, projectsAndLabels.labels, projectsAndLabels.useProjectLabels)
+            .then((unassignedIssues) => {
+              dbWriter.writeToIssuesTable(unassignedIssuesTable, unassignedIssues);
             });
 
           githubFetcher
-            .getOpenIssues(project.name, result2.labels, result2.useProjectLabels)
-            .then((resultB) => {
-              dbWriter.writeToIssuesTable(openIssuesTable, resultB);
+            .getOpenIssues(project.name, projectsAndLabels.labels, projectsAndLabels.useProjectLabels)
+            .then((openIssues) => {
+              dbWriter.writeToIssuesTable(openIssuesTable, openIssues);
             });
           
-          if (Math.round((TODAY - result1.lastDailyReportedUpdateDate) / DAY_IN_MILLISECONDS) >= 2) {
+          if (Math.round((TODAY - lastReported.lastDailyReportedUpdateDate) / DAY_IN_MILLISECONDS) >= 2) {
             githubFetcher
-              .getDailyReportedIssues(project.name, result2.labels, result2.useProjectLabels, result1.lastDailyReportedUpdateDate)
-              .then((resultC) => {
-                dbWriter.writeToIssuesTable(dailyReportedIssuesTable, resultC);
+              .getDailyReportedIssues(project.name, projectsAndLabels.labels, projectsAndLabels.useProjectLabels, lastReported.lastDailyReportedUpdateDate)
+              .then((dailyReportedIssues) => {
+                dbWriter.writeToIssuesTable(dailyReportedIssuesTable, dailyReportedIssues);
               });
           }
 
-          if (Math.round((TODAY - result1.lastDailyClosedUpdateDate) / DAY_IN_MILLISECONDS) >= 2) {
+          if (Math.round((TODAY - lastReported.lastDailyClosedUpdateDate) / DAY_IN_MILLISECONDS) >= 2) {
             githubFetcher
-              .getDailyClosedIssues(project.name, result2.labels, result2.useProjectLabels, result1.lastDailyClosedUpdateDate)
+              .getDailyClosedIssues(project.name, projectsAndLabels.labels, projectsAndLabels.useProjectLabels, lastReported.lastDailyClosedUpdateDate)
               .then((resultD) => {
                 dbWriter.writeToIssuesTable(dailyClosedIssuesTable, resultD);
               });
           }
           
-          if (result1.lastWeeklyReportedUpdateDate <= LAST_MONDAY) {
+          if (lastReported.lastWeeklyReportedUpdateDate <= LAST_MONDAY) {
             githubFetcher
-              .getWeeklyReportedIssues(project.name, result2.labels, result2.useProjectLabels, result1.lastWeeklyReportedUpdateDate)
-              .then((resultE) => {
-                dbWriter.writeToIssuesTable(weeklyReportedIssuesTable, resultE);
+              .getWeeklyReportedIssues(project.name, projectsAndLabels.labels, projectsAndLabels.useProjectLabels, lastReported.lastWeeklyReportedUpdateDate)
+              .then((weeklyReportedIssues) => {
+                dbWriter.writeToIssuesTable(weeklyReportedIssuesTable, weeklyReportedIssues);
               });
           }
 
-          if (result1.lastWeeklyClosedUpdateDate <= LAST_MONDAY) {
+          if (lastReported.lastWeeklyClosedUpdateDate <= LAST_MONDAY) {
             githubFetcher
-              .getWeeklyClosedIssues(project.name, result2.labels, result2.useProjectLabels, result1.lastWeeklyClosedUpdateDate)
-              .then((resultF) => {
-                dbWriter.writeToIssuesTable(weeklyClosedIssuesTable, resultF);
+              .getWeeklyClosedIssues(project.name, projectsAndLabels.labels, projectsAndLabels.useProjectLabels, lastReported.lastWeeklyClosedUpdateDate)
+              .then((weeklyClosedIssues) => {
+                dbWriter.writeToIssuesTable(weeklyClosedIssuesTable, weeklyClosedIssues);
               });
           }
         });
