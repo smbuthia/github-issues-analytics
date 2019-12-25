@@ -14,39 +14,30 @@ const knex = require('knex')({
   }
 });
 
-var lastReportedDates = {
-  lastDailyReportedUpdateDate: new Date(),
-  lastDailyClosedUpdateDate: new Date(),
-  lastWeeklyReportedUpdateDate: new Date(),
-  lastWeeklyClosedUpdateDate: new Date()
-};
-
 module.exports = {
-  getLastReportedDates: (dailyReportedIssuesTable, dailyClosedIssuesTable, weeklyReportedIssuesTable, weeklyClosedIssuesTable) => {
-    return new Promise((resolve, reject) => {
-      knex
-        .from(dailyReportedIssuesTable)
-        .select('last_reported_date')
-        .then((lastDailyReportedUpdateDate) => {
-          lastReportedDates.lastDailyReportedUpdateDate = lastDailyReportedUpdateDate;
+  getValue: (table) => {
+    return new Promise((resolve) => {
+      knex.schema
+        .hasTable(table)
+        .then(exists => {
+          if (!exists) {
+            resolve(-1);
+          } else {
+            knex(table)
+              .select(selectColumn)
+              .distinct(selectColumn)
+              .orderBy(orderColumn, 'desc')
+              .limit(1)
+              .then(returnValue => {
+                resolve(returnValue);
+              })
+              .catch(err => {
+                throw err;
+              });
+          }
         })
-        .from(dailyClosedIssuesTable)
-        .select('last_reported_date')
-        .then((lastDailyClosedUpdateDate) => {
-          lastReportedDates.lastDailyClosedUpdateDate = lastDailyClosedUpdateDate;
-        })
-        .from(weeklyReportedIssuesTable)
-        .select('last_reported_date')
-        .then((lastWeeklyReportedUpdateDate) => {
-          lastReportedDates.lastWeeklyReportedUpdateDate = lastWeeklyReportedUpdateDate;
-        })
-        .from(weeklyClosedIssuesTable)
-        .select('last_reported_date')
-        .then((lastWeeklyClosedUpdateDate) => {
-          lastReportedDates.lastWeeklyClosedUpdateDate = lastWeeklyClosedUpdateDate;
-        })
-        .then(() => {
-          resolve(lastReportedDates);
+        .finally(() => {
+          knex.destroy();
         });
     });
   }

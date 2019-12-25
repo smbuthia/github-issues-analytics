@@ -14,39 +14,42 @@ const knex = require('knex')({
   }
 });
 
+const insertData = (table, data) => { //TODO: Overwrite rows where week is the same
+  knex(table)
+    .insert(data)
+    .then(() => {
+      console.log('data inserted');
+    })
+    .catch(err => {
+      throw err;
+    })
+    .finally(() => {
+      knex.destroy();
+    });
+};
+
 module.exports = {
-  writeToIssuesTable: (tableName, dataRows) => {
+  writeToStatsTable: (tableName, dataRows) => {
     knex.schema
       .hasTable(tableName)
-      .then((exists) => {
+      .then(exists => {
         if (!exists) {
           knex.schema
             .createTable(tableName, table => {
               table.increments('record_id');
-              table.date('reported');
-              table.string('repo');
-              table.string('project');
-              table.string('label');
-              table.integer('issue_count');
+              table.date('week');
+              table.integer('no_of_issues');
+              table.decimal('avg_hrs_resolution');
+              table.decimal('avg_hrs_first_response');
+            })
+            .then(() => {
+              insertData(tableName, dataRows);
             });
+        } else {
+          insertData(tableName, dataRows);
         }
       })
-      .then(() => {
-        knex(tableName)
-          .insert(dataRows)
-          .then(() => {
-            console.log('data inserted');
-          })
-          .catch(err => {
-            console.log(err);
-            throw err;
-          })
-          .finally(() => {
-            knex.destroy();
-          });
-      })
       .catch(err => {
-        console.log(err);
         throw err;
       });
   },
