@@ -1,6 +1,6 @@
 const Octokit = require('@octokit/rest');
 const dotenv = require('dotenv').config();
-const dbReader = require('./db-reader');
+const dbWriter = require('./db-writer');
 
 if (dotenv.error) {
   throw dotenv.error;
@@ -19,8 +19,6 @@ const addDaysToDate = (date, days) => {
 };
 
 const TODAY = new Date();
-const LAST_MONDAY = getMonday(addDaysToDate(new Date(), -7));
-const TWO_MONDAYS_BACK = getMonday(addDaysToDate(new Date(), -14));
 
 const ORG = process.env.GH_ORGANIZATION;
 
@@ -105,7 +103,10 @@ const getIssueStats = async card => {
   const issueCreatedAt = issueData.created_at;
   const issueClosedAt = issueData.closed_at;
   const issueComments = await getComments(owner, repo, issueNumber);
-  const issueComment1CreatedAt = issueComments.data[0].created_at;
+  let issueComment1CreatedAt = null;
+  if(issueComments.data.length > 0) {
+    issueComment1CreatedAt = issueComments.data[0].created_at;
+  }
   return {
     issue_id: issueData.id, 
     created_at: issueCreatedAt,
@@ -121,60 +122,53 @@ const addValues = (runningTotal, hours) => {
   return runningTotal + hours;
 };
 
-const getAverage = (stats) => {
-  return stats.reduce(addValues, 0) / stats.length;
-};
-
-const getLastUpdateDate = (table, selectColumn, orderColumn) => {
-  return dbReader
-    .getValue(table, selectColumn, orderColumn)
-    .then(val => {
-      if (val == -1) {
-        return TWO_MONDAYS_BACK;
-      } 
-      return new Date(val[0].update_date);
-    });
+const getAverage = stats => {
+  return round(stats.reduce(addValues, 0) / stats.length, 2);
 };
 
 const output = columns => {
-  getLastUpdateDate('week_stats', 'update_date', 'update_date')
-    .then(lastUpdate => {
-      const doneColumn = columns.filter(column => {
-        return column[0] == 'Done';
-      });
-      let cards = doneColumn[0][1];
+  const doneColumn = columns.filter(column => {
+    return column[0] == 'Done';
+  });
+  const allDoneCards = doneColumn[0][1];
 
-      console.log('Last update: ' + lastUpdate);
-      addDaysToDate(lastUpdate, 7);
-      const startDate = new Date(getMonday(lastUpdate).toDateString());
-      addDaysToDate(lastUpdate, 7);
-      const endDate = new Date(lastUpdate.toDateString());
+  const LAST_MONDAY = getMonday(addDaysToDate(new Date(), -7));
+  let startMonday = getMonday(addDaysToDate(new Date(), -(13 * 7)));
+  let endMonday = getMonday(addDaysToDate(new Date(), -(12 * 7)));
+  let allData = [];
 
-      if (startDate > LAST_MONDAY) {
-        console.log('The stats are up to date.');
-        return;
-      }
+  while (startMonday <= LAST_MONDAY) {
+    const startDate = new Date(startMonday.toDateString());
+    const endDate = new Date(endMonday.toDateString());
 
-      cards = cards.filter(card => {
-        const createdAt = new Date(card.created_at);
-        return createdAt > startDate && createdAt < endDate;
-      });
-
-      if (cards.length <= 0) {
-        console.log('No cards added in the time frame.');
-        return;
-      }
-
-      Promise.all(cards.map(getIssueStats))
-      .then(issueStats => {
-        console.log(issueStats);
-        const avgHrsToFirstResponse = getAverage(issueStats.map(getHrsToFirstResponse));
-        console.log('Average hours to first response: ' + avgHrsToFirstResponse);
-        const avgHrsToResolution = getAverage(issueStats.map(getHrsToResolution));
-        console.log('Average hours to resolution: ' + avgHrsToResolution);
-        //TODO: write metrics to table factoring in variations with time (current month, last month, and last 3 months)
-      });
+    const doneCards = allDoneCards.filter(card => {
+      const createdAt = new Date(card.created_at);
+      return createdAt >= startDate && createdAt < endDate;
     });
+    
+    if (doneCards.length <= 0) {
+      console.log('No cards added in the time frame.');
+      continue;
+    }
+    allData.push({week: startDate, cards: doneCards});
+    addDaysToDate(startMonday, 7);
+    addDaysToDate(endMonday, 7);
+  }
+
+  Promise.all(allData.map(async data => {
+    const issueStats = await Promise.all(data.cards.map(getIssueStats));
+      return {
+        week: data.week,
+        no_of_issues: issueStats.length,
+        avg_hrs_resolution: getAverage(issueStats.map(getHrsToResolution)),
+        avg_hrs_first_response: getAverage(issueStats.map(getHrsToFirstResponse))
+      };
+    })
+  )
+    .then(allStats => {
+      dbWriter.writeToStatsTable('weekly_stats', allStats);
+    });
+  console.log('The stats are up to date.');
 };
 
 Promise.resolve()
