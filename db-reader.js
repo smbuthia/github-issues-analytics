@@ -14,39 +14,14 @@ const knex = require('knex')({
   }
 });
 
-var lastReportedDates = {
-  lastDailyReportedUpdateDate: new Date(),
-  lastDailyClosedUpdateDate: new Date(),
-  lastWeeklyReportedUpdateDate: new Date(),
-  lastWeeklyClosedUpdateDate: new Date()
-};
-
 module.exports = {
-  getLastReportedDates: (dailyReportedIssuesTable, dailyClosedIssuesTable, weeklyReportedIssuesTable, weeklyClosedIssuesTable) => {
+  getLatestValue: (selectTable, selectColumn) => {
     return new Promise((resolve, reject) => {
       knex
-        .from(dailyReportedIssuesTable)
-        .select('last_reported_date')
-        .then((lastDailyReportedUpdateDate) => {
-          lastReportedDates.lastDailyReportedUpdateDate = lastDailyReportedUpdateDate;
-        })
-        .from(dailyClosedIssuesTable)
-        .select('last_reported_date')
-        .then((lastDailyClosedUpdateDate) => {
-          lastReportedDates.lastDailyClosedUpdateDate = lastDailyClosedUpdateDate;
-        })
-        .from(weeklyReportedIssuesTable)
-        .select('last_reported_date')
-        .then((lastWeeklyReportedUpdateDate) => {
-          lastReportedDates.lastWeeklyReportedUpdateDate = lastWeeklyReportedUpdateDate;
-        })
-        .from(weeklyClosedIssuesTable)
-        .select('last_reported_date')
-        .then((lastWeeklyClosedUpdateDate) => {
-          lastReportedDates.lastWeeklyClosedUpdateDate = lastWeeklyClosedUpdateDate;
-        })
-        .then(() => {
-          resolve(lastReportedDates);
+        .from(selectTable)
+        .select(selectColumn)
+        .then(returnValue => {
+          resolve(returnValue);
         });
     });
   }

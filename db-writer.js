@@ -18,7 +18,7 @@ module.exports = {
   writeToIssuesTable: (tableName, dataRows) => {
     knex.schema
       .hasTable(tableName)
-      .then((exists) => {
+      .then(exists => {
         if (!exists) {
           knex.schema
             .createTable(tableName, table => {
@@ -27,6 +27,40 @@ module.exports = {
               table.string('repo');
               table.string('project');
               table.string('label');
+              table.integer('issue_count');
+            });
+        }
+      })
+      .then(() => {
+        knex(tableName)
+          .insert(dataRows)
+          .then(() => {
+            console.log('data inserted');
+          })
+          .catch(err => {
+            console.log(err);
+            throw err;
+          })
+          .finally(() => {
+            knex.destroy();
+          });
+      })
+      .catch(err => {
+        console.log(err);
+        throw err;
+      });
+  },
+  writeToColumnsTable: (tableName, dataRows) => {
+    knex.schema
+      .hasTable(tableName)
+      .then(exists => {
+        if (!exists) {
+          knex.schema
+            .createTable(tableName, table => {
+              table.increments('record_id');
+              table.date('reported');
+              table.string('project');
+              table.string('column');
               table.integer('issue_count');
             });
         }
