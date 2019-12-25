@@ -15,13 +15,29 @@ const knex = require('knex')({
 });
 
 module.exports = {
-  getLatestValue: (selectTable, selectColumn) => {
-    return new Promise((resolve, reject) => {
-      knex
-        .from(selectTable)
-        .select(selectColumn)
-        .then(returnValue => {
-          resolve(returnValue);
+  getValue: (table) => {
+    return new Promise((resolve) => {
+      knex.schema
+        .hasTable(table)
+        .then(exists => {
+          if (!exists) {
+            resolve(-1);
+          } else {
+            knex(table)
+              .select(selectColumn)
+              .distinct(selectColumn)
+              .orderBy(orderColumn, 'desc')
+              .limit(1)
+              .then(returnValue => {
+                resolve(returnValue);
+              })
+              .catch(err => {
+                throw err;
+              });
+          }
+        })
+        .finally(() => {
+          knex.destroy();
         });
     });
   }

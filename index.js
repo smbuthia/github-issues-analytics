@@ -1,12 +1,26 @@
 const Octokit = require('@octokit/rest');
 const dotenv = require('dotenv').config();
+const dbReader = require('./db-reader');
 
 if (dotenv.error) {
   throw dotenv.error;
 }
 
+const getMonday = (date) => {
+  date = new Date(date);
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day == 0 ? -6:1); 
+  return new Date(date.setDate(diff));
+};
+
+const addDaysToDate = (date, days) => {
+  date.setDate(date.getDate() + days);
+  return new Date(date);
+};
+
 const TODAY = new Date();
 const LAST_MONDAY = getMonday(addDaysToDate(new Date(), -7));
+const TWO_MONDAYS_BACK = getMonday(addDaysToDate(new Date(), -14));
 
 const ORG = process.env.GH_ORGANIZATION;
 
@@ -111,25 +125,56 @@ const getAverage = (stats) => {
   return stats.reduce(addValues, 0) / stats.length;
 };
 
+const getLastUpdateDate = (table, selectColumn, orderColumn) => {
+  return dbReader
+    .getValue(table, selectColumn, orderColumn)
+    .then(val => {
+      if (val == -1) {
+        return TWO_MONDAYS_BACK;
+      } 
+      return new Date(val[0].update_date);
+    });
+};
+
 const output = columns => {
-  const doneColumn = columns.filter(column => {
-    return column[0] == 'Done';
-  });
-  let cards = doneColumn[1];
-  //TODO: Get latest record date from database or default to last week
-  const startDate = '';
-  const endDate = ''; // This will be one week interval Monday to Sunday
+  getLastUpdateDate('week_stats', 'update_date', 'update_date')
+    .then(lastUpdate => {
+      const doneColumn = columns.filter(column => {
+        return column[0] == 'Done';
+      });
+      let cards = doneColumn[0][1];
 
-  cards = cards.filter(card => {
-    const createdAt = card.created_at;
-    return createdAt > startDate && createdAt < endDate;
-  });
+      console.log('Last update: ' + lastUpdate);
+      addDaysToDate(lastUpdate, 7);
+      const startDate = new Date(getMonday(lastUpdate).toDateString());
+      addDaysToDate(lastUpdate, 7);
+      const endDate = new Date(lastUpdate.toDateString());
 
-  Promise.all(cards.map(getIssueStats)
-  ).then(issueStats => {
-    const avgHrsToFirstResponse = getAverage(issueStats.map(getHrsToFirstResponse));
-    console.log('Average hours to first response: ' + avgHrsToFirstResponse);
-  });
+      if (startDate > LAST_MONDAY) {
+        console.log('The stats are up to date.');
+        return;
+      }
+
+      cards = cards.filter(card => {
+        const createdAt = new Date(card.created_at);
+        return createdAt > startDate && createdAt < endDate;
+      });
+
+      if (cards.length <= 0) {
+        console.log('No cards added in the time frame.');
+        return;
+      }
+
+      Promise.all(cards.map(getIssueStats))
+      .then(issueStats => {
+        console.log(issueStats);
+        const avgHrsToFirstResponse = getAverage(issueStats.map(getHrsToFirstResponse));
+        console.log('Average hours to first response: ' + avgHrsToFirstResponse);
+        const avgHrsToResolution = getAverage(issueStats.map(getHrsToResolution));
+        console.log('Average hours to resolution: ' + avgHrsToResolution);
+        //TODO: write metrics to table factoring in variations with time (current month, last month, and last 3 months)
+      });
+    });
 };
 
 Promise.resolve()
