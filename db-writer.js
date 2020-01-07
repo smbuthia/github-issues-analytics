@@ -41,6 +41,7 @@ module.exports = {
               table.integer('no_of_issues');
               table.decimal('avg_hrs_resolution');
               table.decimal('avg_hrs_first_response');
+              table.timestamp('row_updated_at', { precision: 6 }).defaultTo(knex.fn.now(6));
             })
             .then(() => {
               insertData(tableName, dataRows);

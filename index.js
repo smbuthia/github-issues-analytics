@@ -1,24 +1,11 @@
 const Octokit = require('@octokit/rest');
 const dotenv = require('dotenv').config();
 const dbWriter = require('./db-writer');
+const misc = require('./miscellaneous');
 
 if (dotenv.error) {
   throw dotenv.error;
 }
-
-const getMonday = (date) => {
-  date = new Date(date);
-  const day = date.getDay();
-  const diff = date.getDate() - day + (day == 0 ? -6:1); 
-  return new Date(date.setDate(diff));
-};
-
-const addDaysToDate = (date, days) => {
-  date.setDate(date.getDate() + days);
-  return new Date(date);
-};
-
-const TODAY = new Date();
 
 const ORG = process.env.GH_ORGANIZATION;
 
@@ -72,27 +59,11 @@ const getComments = (owner, repo, issueNumber) => {
   return octokit.issues.listComments({ owner: owner, repo: repo, issue_number: issueNumber });
 };
 
-const getTimeDiffInHrs = (date1, date2) => {
-  if(!date1 || !date2){
-    return null;
-  }
-  return round((new Date(date1) - new Date(date2)) / (1000 * 60 * 60), 0);
-};
-
-const hrsToDys = timeInHrs => {
-  return round(timeInHrs / 24, 0);
-};
-
-const round = (value, precision) => {
-  const multiplier = Math.pow(10, precision || 0);
-  return Math.round(value * multiplier)/multiplier;
-};
-
-const getHrsToResolution = (issue) => {
+const getHrsToResolution = issue => {
   return issue.hours_to_resolution;
 };
 
-const getHrsToFirstResponse = (issue) => {
+const getHrsToFirstResponse = issue => {
   return issue.hours_to_first_response;
 };
 
@@ -113,17 +84,9 @@ const getIssueStats = async card => {
     card_created_at: card.created_at,
     closed_at: issueClosedAt,
     issue_first_comment_at: issueComment1CreatedAt,
-    hours_to_resolution: getTimeDiffInHrs(issueClosedAt, issueCreatedAt),
-    hours_to_first_response: getTimeDiffInHrs(issueComment1CreatedAt, issueCreatedAt)
+    hours_to_resolution: misc.getTimeDiffInHrs(issueClosedAt, issueCreatedAt),
+    hours_to_first_response: misc.getTimeDiffInHrs(issueComment1CreatedAt, issueCreatedAt)
   };
-};
-
-const addValues = (runningTotal, hours) => {
-  return runningTotal + hours;
-};
-
-const getAverage = stats => {
-  return round(stats.reduce(addValues, 0) / stats.length, 2);
 };
 
 const output = columns => {
@@ -132,9 +95,9 @@ const output = columns => {
   });
   const allDoneCards = doneColumn[0][1];
 
-  const LAST_MONDAY = getMonday(addDaysToDate(new Date(), -7));
-  let startMonday = getMonday(addDaysToDate(new Date(), -(13 * 7)));
-  let endMonday = getMonday(addDaysToDate(new Date(), -(12 * 7)));
+  const LAST_MONDAY = misc.getMonday(misc.addDaysToDate(new Date(), -7));
+  let startMonday = misc.getMonday(misc.addDaysToDate(new Date(), -(13 * 7)));
+  let endMonday = misc.getMonday(misc.addDaysToDate(new Date(), -(12 * 7)));
   let allData = [];
 
   while (startMonday <= LAST_MONDAY) {
@@ -147,12 +110,14 @@ const output = columns => {
     });
     
     if (doneCards.length <= 0) {
-      console.log('No cards added in the time frame.');
+      console.log('No cards added in the time frame between ' + startMonday + ' and ' + endMonday);
+      misc.addDaysToDate(startMonday, 7);
+      misc.addDaysToDate(endMonday, 7);
       continue;
     }
     allData.push({week: startDate, cards: doneCards});
-    addDaysToDate(startMonday, 7);
-    addDaysToDate(endMonday, 7);
+    misc.addDaysToDate(startMonday, 7);
+    misc.addDaysToDate(endMonday, 7);
   }
 
   Promise.all(allData.map(async data => {
@@ -160,8 +125,8 @@ const output = columns => {
       return {
         week: data.week,
         no_of_issues: issueStats.length,
-        avg_hrs_resolution: getAverage(issueStats.map(getHrsToResolution)),
-        avg_hrs_first_response: getAverage(issueStats.map(getHrsToFirstResponse))
+        avg_hrs_resolution: misc.getAverage(issueStats.map(getHrsToResolution)),
+        avg_hrs_first_response: misc.getAverage(issueStats.map(getHrsToFirstResponse))
       };
     })
   )
