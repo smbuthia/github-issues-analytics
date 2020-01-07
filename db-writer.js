@@ -14,7 +14,7 @@ const knex = require('knex')({
   }
 });
 
-const insertData = (table, data) => { //TODO: Overwrite rows where week is the same
+const insertData = (table, data) => {
   knex(table)
     .insert(data)
     .then(() => {
