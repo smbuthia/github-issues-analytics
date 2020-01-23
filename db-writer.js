@@ -1,4 +1,4 @@
-const dotenv = require('dotenv').config();
+const dotenv = require('dotenv').config({path: __dirname + '/.env'});
 
 if (dotenv.error) {
   throw dotenv.error;
